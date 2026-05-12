@@ -1,6 +1,5 @@
 import streamlit as st
 from supabase import create_client, Client
-import pandas as pd
 import google.generativeai as genai
 
 # ==========================================
@@ -12,7 +11,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Custom CSS untuk UI yang lebih modern
+# Custom CSS untuk UI modern
 st.markdown("""
 <style>
     .stChatMessage { border-radius: 10px; padding: 10px; margin-bottom: 10px; }
@@ -23,7 +22,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("📈 Chatbot Analisis Harga & Inflasi")
-st.caption("Tanyakan seputar data harga komoditas harian, pasar, dan tingkat inflasi wilayah.")
+st.caption("Tanyakan seputar data harga komoditas harian, pergerakan pasar, dan tingkat inflasi wilayah.")
 
 # ==========================================
 # 2. KONEKSI SUPABASE
@@ -38,72 +37,90 @@ def init_supabase():
 supabase = init_supabase()
 
 # ==========================================
-# 3. KONEKSI AI (Untuk Respon Manusia)
+# 3. KONEKSI AI & AUTO-DETEKSI MODEL
 # ==========================================
-# Masukkan API Key Gemini Anda di sini (Dapatkan gratis di Google AI Studio)
-GEMINI_API_KEY = "AIzaSyA4fceuUeaC0l-97hxKNXdaF398-QGSU5U" 
+# PENTING: Masukkan API Key Gemini Anda di antara tanda kutip di bawah ini!
+GEMINI_API_KEY = "AIzaSyA4fceuUeaC0l-97hxKNXdaF398-QGSU5U"
 
-if GEMINI_API_KEY != " ":
+model = None
+if GEMINI_API_KEY != "" and GEMINI_API_KEY != "AIzaSyA4fceuUeaC0l-97hxKNXdaF398-QGSU5U":
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    
+    # Auto-mencari model yang didukung oleh API Key Anda agar tidak error 404
+    try:
+        model_aktif = None
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                model_aktif = m.name
+                break 
+        
+        if model_aktif:
+            model = genai.GenerativeModel(model_aktif)
+        else:
+            st.error("API Key valid, tapi tidak memiliki akses ke model teks apapun.")
+    except Exception as e:
+        st.error(f"Error saat menghubungi Google AI: {e}")
 else:
-    st.warning("⚠️ API Key LLM belum diisi. Chatbot akan menggunakan respon statis sementara.")
+    st.warning("⚠️ API Key LLM belum diisi. Chatbot menggunakan mode respons statis sementara.")
 
-# Skema Database sebagai Konteks AI
+# Skema Database sebagai Konteks AI (Otak Chatbot)
 DB_SCHEMA_CONTEXT = """
-Kamu adalah AI Data Analyst Ekonomi yang ahli. Kamu memiliki akses ke database dengan skema berikut:
+Kamu adalah AI Data Analyst Ekonomi andalan Tim Pengendalian Inflasi Daerah (TPID) di Kabupaten Pekalongan.
+Tugas utamamu adalah membantu menganalisis stabilitas harga komoditas bapokting (bahan pokok dan penting) serta laju inflasi daerah.
+
+Kamu memiliki akses ke database dengan skema berikut:
 1. Tabel 'inflasi': id_inflasi, tahun, bulan, level_wilayah, nama_wilayah, inflasi_mtm, inflasi_ytd, inflasi_yoy, created_at
 2. Tabel 'harga_harian': tanggal, id_komoditas, id_pasar, harga
 3. Tabel 'komoditas': id_komoditas, nama_komoditas, satuan
 4. Tabel 'pasar': id_pasar, nama_pasar, kabupaten, kecamatan
 
-Gunakan bahasa yang ramah, profesional, dan analitis seperti seorang konsultan ekonomi.
+Gunakan bahasa yang profesional, akurat, dan solutif. Jika ditanya tentang pergerakan harga, asumsikan kamu dapat mengkorelasikannya dengan data wilayah.
 """
 
 # ==========================================
-# 4. LOGIKA CHATBOT & DATABASE
+# 4. LOGIKA CHATBOT
 # ==========================================
 # Inisialisasi riwayat chat
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Halo! Saya adalah Asisten Analisis Ekonomi Anda. Ada yang bisa saya bantu terkait data inflasi atau harga komoditas hari ini?"}
+        {"role": "assistant", "content": "Halo! Saya adalah Asisten Analisis Ekonomi Anda. Ada yang bisa saya bantu terkait pemantauan harga komoditas pasar atau data inflasi hari ini?"}
     ]
 
-# Tampilkan riwayat chat
+# Tampilkan riwayat chat sebelumnya
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# Input pengguna
+# Input teks pengguna dengan walrus operator (:=)
 if prompt := st.chat_input("Contoh: Berapa harga rata-rata beras hari ini?"):
-    # Tampilkan pesan user
+    
+    # Tampilkan pesan user ke layar
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Tampilkan respon asisten
+    # Proses respon asisten
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         
-        # Skenario 1: Jika user bertanya tentang data (Contoh: Tarik data dari Supabase)
-        # Note: Dalam aplikasi production, AI bisa merancang SQL query lalu mengeksekusinya. 
-        # Di sini kita memberikan contoh penarikan data komoditas dasar untuk memperkaya konteks AI.
         try:
-            # Contoh penarikan data (Bisa disesuaikan berdasarkan intent user)
-            res_komoditas = supabase.table("komoditas").select("*").limit(5).execute()
-            data_konteks = f"Data sampel komoditas: {res_komoditas.data}"
+            # Mengambil sedikit sampel data komoditas dari Supabase sebagai pelengkap memori AI
+            res_komoditas = supabase.table("komoditas").select("nama_komoditas, satuan").limit(5).execute()
+            data_konteks = f"Sampel data komoditas di sistem: {res_komoditas.data}"
             
-            # Gabungkan prompt user dengan konteks schema & data
-            full_prompt = f"{DB_SCHEMA_CONTEXT}\n\nKonteks Data Tambahan: {data_konteks}\n\nPertanyaan Pengguna: {prompt}\n\nBerikan jawaban analitis berdasarkan skema dan data tersebut:"
+            # Menggabungkan seluruh instruksi, konteks, dan pertanyaan
+            full_prompt = f"{DB_SCHEMA_CONTEXT}\n\nKonteks Data: {data_konteks}\n\nPertanyaan Pengguna: {prompt}\n\nBerikan jawaban analitis:"
             
-            if GEMINI_API_KEY != "":
+            # Pengecekan apakah model AI siap digunakan
+            if model is not None:
                 response = model.generate_content(full_prompt)
                 full_response = response.text
             else:
-                full_response = "Maaf, API Key LLM belum dikonfigurasi. Namun saya dapat menerima pertanyaan Anda: " + prompt
+                full_response = f"(Mode Terbatas) Anda bertanya: {prompt} \n\n*Catatan: Bot belum bisa menjawab seperti manusia karena API Key belum diisi.*"
                 
         except Exception as e:
-            full_response = f"Mohon maaf, terjadi kesalahan saat menghubungi database: {e}"
+            full_response = f"Mohon maaf, terjadi kesalahan pada sistem saat memproses data: {e}"
 
+        # Tampilkan balasan ke layar dan simpan ke riwayat
         message_placeholder.markdown(full_response)
         st.session_state.messages.append({"role": "assistant", "content": full_response})
