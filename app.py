@@ -75,7 +75,7 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # Input pengguna
-if prompt = st.chat_input("Contoh: Berapa harga rata-rata beras hari ini?"):
+if prompt := st.chat_input("Contoh: Berapa harga rata-rata beras hari ini?"):
     # Tampilkan pesan user
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
