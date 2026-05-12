@@ -43,7 +43,7 @@ supabase = init_supabase()
 GEMINI_API_KEY = "AIzaSyA4fceuUeaC0l-97hxKNXdaF398-QGSU5U"
 
 model = None
-if GEMINI_API_KEY != "" and GEMINI_API_KEY != "AIzaSyA4fceuUeaC0l-97hxKNXdaF398-QGSU5U":
+if GEMINI_API_KEY != "":
     genai.configure(api_key=GEMINI_API_KEY)
     
     # Auto-mencari model yang didukung oleh API Key Anda agar tidak error 404
