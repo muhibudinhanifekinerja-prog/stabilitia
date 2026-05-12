@@ -45,7 +45,7 @@ GEMINI_API_KEY = "AIzaSyA4fceuUeaC0l-97hxKNXdaF398-QGSU5U"
 
 if GEMINI_API_KEY != " ":
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
 else:
     st.warning("⚠️ API Key LLM belum diisi. Chatbot akan menggunakan respon statis sementara.")
 
