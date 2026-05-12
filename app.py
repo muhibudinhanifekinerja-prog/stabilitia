@@ -41,9 +41,9 @@ supabase = init_supabase()
 # 3. KONEKSI AI (Untuk Respon Manusia)
 # ==========================================
 # Masukkan API Key Gemini Anda di sini (Dapatkan gratis di Google AI Studio)
-GEMINI_API_KEY = "MASUKKAN_API_KEY_GEMINI_ANDA_DISINI" 
+GEMINI_API_KEY = "AIzaSyA4fceuUeaC0l-97hxKNXdaF398-QGSU5U" 
 
-if GEMINI_API_KEY != "MASUKKAN_API_KEY_GEMINI_ANDA_DISINI":
+if GEMINI_API_KEY != "AIzaSyA4fceuUeaC0l-97hxKNXdaF398-QGSU5U":
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash')
 else:
@@ -96,7 +96,7 @@ if prompt = st.chat_input("Contoh: Berapa harga rata-rata beras hari ini?"):
             # Gabungkan prompt user dengan konteks schema & data
             full_prompt = f"{DB_SCHEMA_CONTEXT}\n\nKonteks Data Tambahan: {data_konteks}\n\nPertanyaan Pengguna: {prompt}\n\nBerikan jawaban analitis berdasarkan skema dan data tersebut:"
             
-            if GEMINI_API_KEY != "MASUKKAN_API_KEY_GEMINI_ANDA_DISINI":
+            if GEMINI_API_KEY != "AIzaSyA4fceuUeaC0l-97hxKNXdaF398-QGSU5U":
                 response = model.generate_content(full_prompt)
                 full_response = response.text
             else:
